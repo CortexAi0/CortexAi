@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CortexAI</title>
+    <style>
+        /* General Styles */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f8f9fa;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+
+        /* Main Container */
+        #mainApp {
+            max-width: 800px;
+            margin: auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.1);
+            border: 2px solid #b2dfdb;
+            transition: transform 0.3s ease-in-out;
+            animation: slideIn 1s ease-in-out;
+        }
+
+        /* Slide-In Animation */
+        @keyframes slideIn {
+            0% { transform: translateY(-50px); opacity: 0; }
+            100% { transform: translateY(0); opacity: 1; }
+        }
+
+        /* Hover Effect */
+        #mainApp:hover {
+            transform: scale(1.02);
+        }
+
+        /* Title */
+        h1 {
+            font-size: 32px;
+            color: #00796b;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Card Styles */
+        .card {
+            background: #e0f7fa;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0, 150, 255, 0.15);
+            border: 1px solid #80deea;
+            text-align: left;
+            opacity: 0;
+            animation: fadeIn 1s ease-in-out forwards;
+        }
+
+        /* Fade-In Animation */
+        @keyframes fadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        .card h2 {
+            font-size: 24px;
+            color: #00695c;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            font-size: 20px;
+            font-weight: bold;
+            padding: 10px;
+            background: #b2dfdb;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            transition: background 0.3s ease;
+        }
+
+        .stat:hover {
+            background: #80cbc4;
+        }
+
+        /* History Table */
+        .history-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .history-table th, .history-table td {
+            padding: 12px;
+            font-size: 16px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .history-table th {
+            background: #00796b;
+            color: white;
+            text-transform: uppercase;
+        }
+
+        .history-table tr:hover {
+            background: #e0f2f1;
+        }
+
+        .status-win {
+            color: #388e3c;
+            font-weight: bold;
+        }
+
+        .status-loss {
+            color: #d32f2f;
+            font-weight: bold;
+        }
+
+        .status-pending {
+            color: #ffa000;
+            font-weight: bold;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+            
+            #mainApp {
+                max-width: 100%;
+                padding: 20px;
+            }
+
+            h1 {
+                font-size: 28px;
+            }
+
+            .stat {
+                font-size: 16px;
+                padding: 8px;
+            }
+
+            .history-table th, .history-table td {
+                font-size: 14px;
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="mainApp">
+        <h1>CortexAI</h1>
+
+        <div class="card">
+            <h2>📅 Period: <span id="currentPeriod">-</span></h2>
+            <h2>📊 Result: <span id="currentPrediction">-</span></h2>
+        </div>
+
+        <div class="card">
+            <h2>Analysis</h2>
+            <div class="stat">
+                <span>Win Count</span>
+                <span id="totalWins">0</span>
+            </div>
+            <div class="stat">
+                <span>Loss Count</span>
+                <span id="totalLosses">0</span>
+            </div>
+            <div class="stat">
+                <span>Win %</span>
+                <span id="accuracy">0%</span>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>History</h2>
+            <table class="history-table">
+                <thead>
+                    <tr>
+                        <th>Period</th>
+                        <th>Prediction</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTable">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        let historyData = [];
+        let totalWins = 0;
+        let totalLosses = 0;
+        let lastFetchedPeriod = null;
+        let periodPredictionMap = {}; // To keep track of predictions for each period
+
+        // Define the results array
+        const RESULTS = ["6", "1", "7", "3", "9", "2", "8", "0", "5", "4"];
+
+        // Function to predict the trend based on randomness
+        function predictTrend() {
+            let trend = "";
+
+            // Predict either SMALL (0 to 4) or BIG (5 to 9) based on the random chance
+            let randomValue = Math.floor(Math.random() * 10); // Random number from 0 to 9
+
+            if (randomValue <= 4) {
+                trend = "SMALL"; // SMALL trend
+            } else {
+                trend = "BIG"; // BIG trend
+            }
+
+            return trend;
+        }
+
+        // Fetch game result from API
+        async function fetchGameResult() {
+            try {
+                let response = await fetch("https://api.bdg88zf.com/api/webapi/GetNoaverageEmerdList", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        pageSize: 10,
+                        pageNo: 1,
+                        typeId: 1,
+                        language: 0,
+                        random: "4a0522c6ecd8410496260e686be2a57c",
+                        signature: "334B5E70A0C9B8918B0B15E517E2069C",
+                        timestamp: Math.floor(Date.now() / 1000)
+                    })
+                });
+
+                if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
+                let data = await response.json();
+                let latestResult = data?.data?.list?.[0];
+                if (latestResult) {
+                    return { period: latestResult.issueNumber, result: latestResult.number };
+                } else {
+                    throw new Error("No data found in API response");
+                }
+            } catch (error) {
+                console.error("Error fetching game result:", error);
+                return null;
+            }
+        }
+
+        // Update prediction and UI
+        async function updatePrediction() {
+            let apiResult = await fetchGameResult();
+            if (apiResult && apiResult.period !== lastFetchedPeriod) {
+                lastFetchedPeriod = apiResult.period;
+                let currentPeriod = (BigInt(apiResult.period) + 1n).toString();
+
+                // Check if we have already generated a prediction for this period
+                if (!periodPredictionMap[currentPeriod]) {
+                    periodPredictionMap[currentPeriod] = predictTrend(); // Generate a new prediction for the current period
+                }
+
+                let currentPrediction = periodPredictionMap[currentPeriod]; // Get the prediction for this period
+
+                document.getElementById("currentPeriod").innerText = currentPeriod;
+                document.getElementById("currentPrediction").innerText = currentPrediction;
+
+                // Save prediction and result in history
+                historyData.unshift({ period: currentPeriod, prediction: currentPrediction, result: apiResult.result, status: "Pending" });
+                updateHistory();
+                checkWinLoss(apiResult);
+            }
+        }
+
+        // Check win/loss based on prediction
+        function checkWinLoss(apiResult) {
+            if (!apiResult) return;
+
+            historyData.forEach(item => {
+                if (item.period === apiResult.period) {
+                    let actualResult = apiResult.result >= 5 ? "BIG" : "SMALL";
+                    item.status = (item.prediction === actualResult) ? "WIN" : "LOSS";
+                }
+            });
+
+            updateStats();
+            updateHistory();
+        }
+
+        // Update statistics
+        function updateStats() {
+            totalWins = historyData.filter(item => item.status === "WIN").length;
+            totalLosses = historyData.filter(item => item.status === "LOSS").length;
+            let accuracy = (totalWins / (totalWins + totalLosses) * 100) || 0;
+
+            document.getElementById("totalWins").innerText = totalWins;
+            document.getElementById("totalLosses").innerText = totalLosses;
+            document.getElementById("accuracy").innerText = accuracy.toFixed(2) + '%';
+        }
+
+        // Update history table
+        function updateHistory() {
+            let historyTable = document.getElementById("historyTable");
+            historyTable.innerHTML = "";
+            historyData.forEach(item => {
+                let statusClass = item.status === "WIN" ? "status-win" : (item.status === "LOSS" ? "status-loss" : "status-pending");
+                historyTable.innerHTML += `
+                    <tr>
+                        <td>${item.period}</td>
+                        <td>${item.prediction}</td>
+                        <td class="${statusClass}">${item.status}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Update every second
+        setInterval(updatePrediction, 1000);
+    </script>
+
+</body>
+</html>
